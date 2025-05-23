@@ -43,8 +43,6 @@ export const useShapeHitTest = (shapes: ShapeData[]) => {
           localY >= 0 &&
           localY < shape.height
         ) {
-          const pointX = Math.floor(localX) + 0.5;
-          const pointY = Math.floor(localY) + 0.5;
           const mask = createShapeMask(shape.type, shape.width, shape.height);
           const maskX = Math.floor(localX);
           const maskY = Math.floor(localY);

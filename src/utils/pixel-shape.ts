@@ -144,14 +144,14 @@ export const isOutlinePixel = (
 };
 
 // Helper functions for touch distance calculation
-export const getTouchDistance = (touches: React.TouchList): number => {
+export const getTouchDistance = (touches: React.TouchList | TouchList): number => {
   if (touches.length < 2) return 0;
   const dx = touches[0].clientX - touches[1].clientX;
   const dy = touches[0].clientY - touches[1].clientY;
   return Math.sqrt(dx * dx + dy * dy);
 };
 
-export const getTouchCenter = (touches: React.TouchList): { x: number; y: number } => {
+export const getTouchCenter = (touches: React.TouchList | TouchList): { x: number; y: number } => {
   if (touches.length === 1) {
     return { x: touches[0].clientX, y: touches[0].clientY };
   }
