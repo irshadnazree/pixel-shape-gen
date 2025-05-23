@@ -1,10 +1,20 @@
+import { useState } from "react";
+import { useTheme } from "../../contexts/ThemeContext";
 import { useCanvasInteraction } from "../../hooks/useCanvasInteraction";
 import { useShapeManagement } from "../../hooks/useShapeManagement";
+import { CollapsibleSidebar } from "../ui/CollapsibleSidebar";
+import { DarkModeToggle } from "../ui/DarkModeToggle";
 import { CanvasArea } from "./CanvasArea";
 import { ControlsPanel } from "./ControlsPanel";
 import { ShapeList } from "./ShapeList";
 
 export default function PixelShapeGenerator() {
+  const { isDarkMode } = useTheme();
+
+  // Sidebar states
+  const [isControlsPanelOpen, setIsControlsPanelOpen] = useState(false);
+  const [isShapeListOpen, setIsShapeListOpen] = useState(false);
+
   // Shape management hook
   const shapeManagement = useShapeManagement();
 
@@ -36,31 +46,60 @@ export default function PixelShapeGenerator() {
   };
 
   return (
-    <div className="flex flex-col items-center w-full p-4 bg-gray-100 min-h-screen font-sans">
-      <h1 className="text-3xl font-bold mb-6 text-gray-700">
-        Pixel Art Shape Tool
-      </h1>
+    <div
+      className={`
+      min-h-screen transition-colors duration-200
+      ${isDarkMode ? "bg-gray-900" : "bg-gray-100"}
+    `}
+    >
+      {/* Dark Mode Toggle */}
+      <DarkModeToggle />
 
-      {/* Controls Panel */}
-      <ControlsPanel
-        currentShapeType={shapeManagement.currentShapeType}
-        width={shapeManagement.width}
-        height={shapeManagement.height}
-        currentShapeBaseColor={shapeManagement.currentShapeBaseColor}
-        currentShapeOpacity={shapeManagement.currentShapeOpacity}
-        isEditing={shapeManagement.isEditing}
-        selectedShapeObject={shapeManagement.selectedShapeObject}
-        onShapeTypeChange={shapeManagement.handleShapeTypeChange}
-        onWidthChange={shapeManagement.handleWidthChange}
-        onHeightChange={shapeManagement.handleHeightChange}
-        onColorChange={shapeManagement.handleColorChange}
-        onOpacityChange={shapeManagement.handleOpacityChange}
-        onFormSubmit={() =>
-          shapeManagement.handleFormSubmit(getNewShapePosition)
-        }
-      />
+      {/* Left Sidebar - Controls Panel */}
+      <CollapsibleSidebar
+        title="Shape Controls"
+        isOpen={isControlsPanelOpen}
+        onToggle={() => setIsControlsPanelOpen(!isControlsPanelOpen)}
+        position="left"
+        width="w-80"
+      >
+        <ControlsPanel
+          currentShapeType={shapeManagement.currentShapeType}
+          width={shapeManagement.width}
+          height={shapeManagement.height}
+          currentShapeBaseColor={shapeManagement.currentShapeBaseColor}
+          currentShapeOpacity={shapeManagement.currentShapeOpacity}
+          isEditing={shapeManagement.isEditing}
+          selectedShapeObject={shapeManagement.selectedShapeObject}
+          onShapeTypeChange={shapeManagement.handleShapeTypeChange}
+          onWidthChange={shapeManagement.handleWidthChange}
+          onHeightChange={shapeManagement.handleHeightChange}
+          onColorChange={shapeManagement.handleColorChange}
+          onOpacityChange={shapeManagement.handleOpacityChange}
+          onFormSubmit={() =>
+            shapeManagement.handleFormSubmit(getNewShapePosition)
+          }
+        />
+      </CollapsibleSidebar>
 
-      {/* Canvas Area */}
+      {/* Right Sidebar - Shape List */}
+      <CollapsibleSidebar
+        title="Shape List"
+        isOpen={isShapeListOpen}
+        onToggle={() => setIsShapeListOpen(!isShapeListOpen)}
+        position="right"
+        width="w-80"
+      >
+        <ShapeList
+          shapes={shapeManagement.shapes}
+          selectedShapeId={shapeManagement.selectedShapeId}
+          onShapeSelect={shapeManagement.setSelectedShapeId}
+          onRemoveShape={shapeManagement.removeShape}
+          onMoveShapeLayer={shapeManagement.handleMoveShapeLayer}
+        />
+      </CollapsibleSidebar>
+
+      {/* Full Screen Canvas */}
       <CanvasArea
         viewportContainerRef={canvasInteraction.viewportContainerRef}
         zoom={canvasInteraction.zoom}
@@ -77,17 +116,6 @@ export default function PixelShapeGenerator() {
           shapeManagement.resetFormToDefaults();
         }}
       />
-
-      {/* Shape List */}
-      <div className="bg-white p-4 sm:p-6 rounded-lg shadow-xl w-full max-w-4xl">
-        <ShapeList
-          shapes={shapeManagement.shapes}
-          selectedShapeId={shapeManagement.selectedShapeId}
-          onShapeSelect={shapeManagement.setSelectedShapeId}
-          onRemoveShape={shapeManagement.removeShape}
-          onMoveShapeLayer={shapeManagement.handleMoveShapeLayer}
-        />
-      </div>
     </div>
   );
 }

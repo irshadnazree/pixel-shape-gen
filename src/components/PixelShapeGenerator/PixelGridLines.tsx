@@ -31,7 +31,6 @@ export const PixelGridLines = React.memo<PixelGridLinesProps>(
     const worldViewRight = (viewportWidth - canvasOffset.x) / zoom;
     const worldViewBottom = (viewportHeight - canvasOffset.y) / zoom;
 
-    const gridColor = "rgba(150, 150, 150, 0.4)";
     const gridLineWidth = 1;
     const lines = [];
 
@@ -41,15 +40,12 @@ export const PixelGridLines = React.memo<PixelGridLinesProps>(
       lines.push(
         <div
           key={`v-pixel-${x}`}
+          className="absolute pointer-events-none z-1 bg-gray-400/10"
           style={{
-            position: "absolute",
             left: `${x * zoom}px`,
             top: `${worldViewTop * zoom}px`,
             width: `${gridLineWidth}px`,
             height: `${(worldViewBottom - worldViewTop) * zoom}px`,
-            backgroundColor: gridColor,
-            pointerEvents: "none",
-            zIndex: 1,
           }}
         />
       );
@@ -61,15 +57,12 @@ export const PixelGridLines = React.memo<PixelGridLinesProps>(
       lines.push(
         <div
           key={`h-pixel-${y}`}
+          className="absolute pointer-events-none z-1 bg-gray-400/10"
           style={{
-            position: "absolute",
             top: `${y * zoom}px`,
             left: `${worldViewLeft * zoom}px`,
             height: `${gridLineWidth}px`,
             width: `${(worldViewRight - worldViewLeft) * zoom}px`,
-            backgroundColor: gridColor,
-            pointerEvents: "none",
-            zIndex: 1,
           }}
         />
       );

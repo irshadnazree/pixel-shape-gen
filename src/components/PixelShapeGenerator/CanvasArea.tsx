@@ -1,5 +1,6 @@
 import React from "react";
 import type { ShapeData, SnappingGuide } from "../../constants/pixel-shape";
+import { useTheme } from "../../contexts/ThemeContext";
 import { useViewportSize } from "../../hooks/pixel-shape";
 import { PixelGridLines } from "./PixelGridLines";
 import { PixelShapeDisplay } from "./PixelShapeDisplay";
@@ -33,6 +34,7 @@ export const CanvasArea = React.memo<CanvasAreaProps>(
     onResetView,
   }) => {
     const viewportSize = useViewportSize(viewportContainerRef);
+    const { isDarkMode } = useTheme();
 
     const getCursor = () => {
       if (isPanning) return "grabbing";
@@ -41,29 +43,43 @@ export const CanvasArea = React.memo<CanvasAreaProps>(
     };
 
     return (
-      <div className="bg-white p-4 sm:p-6 rounded-lg shadow-xl w-full max-w-4xl">
-        <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-700 mb-2 sm:mb-0">
-            Canvas
-          </h2>
-          <div className="flex items-center space-x-2 sm:space-x-4">
-            <div className="text-sm text-gray-600">
-              Zoom: {zoom.toFixed(2)}x
-            </div>
-            <button
-              onClick={onResetView}
-              className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-md text-sm transition duration-150"
-            >
-              Reset View
-            </button>
-          </div>
+      <div className="fixed inset-0 flex flex-col">
+        {/* Canvas Controls Header */}
+        <div
+          className={`
+          fixed top-4 left-1/2 transform -translate-x-1/2 z-30
+          flex items-center space-x-4 px-4 py-2 rounded-lg shadow-lg border
+          ${
+            isDarkMode
+              ? "bg-gray-800 border-gray-700 text-white"
+              : "bg-white border-gray-200 text-gray-900"
+          }
+        `}
+        >
+          <div className="text-sm">Zoom: {zoom.toFixed(2)}x</div>
+          <button
+            onClick={onResetView}
+            className={`
+              px-3 py-1 rounded-md text-sm transition-colors
+              ${
+                isDarkMode
+                  ? "bg-gray-700 hover:bg-gray-600 text-gray-200"
+                  : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+              }
+            `}
+          >
+            Reset View
+          </button>
         </div>
 
+        {/* Full Screen Canvas */}
         <div
           ref={viewportContainerRef}
-          className="border border-gray-300 rounded-md mb-4 relative overflow-hidden bg-gray-50 cursor-grab touch-none select-none"
+          className={`
+            flex-1 relative overflow-hidden touch-none select-none
+            ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}
+          `}
           style={{
-            height: "400px",
             cursor: getCursor(),
           }}
           onMouseDown={onPointerDown}
@@ -116,15 +132,39 @@ export const CanvasArea = React.memo<CanvasAreaProps>(
                 }}
               />
             ))}
-
-            {shapes.length === 0 && !isPanning && !isDraggingShape && (
-              <div className="absolute inset-0 flex items-center justify-center text-gray-500 italic pointer-events-none">
-                Click "Add Shape" to create your first shape!
-              </div>
-            )}
           </div>
 
-          <div className="absolute bottom-2 left-2 text-xs text-gray-500 bg-white bg-opacity-75 p-1 rounded pointer-events-none">
+          {/* Empty state message - centered to viewport */}
+          {shapes.length === 0 && (
+            <div
+              className={`
+              absolute inset-0 flex items-center justify-center italic pointer-events-none z-10
+              ${isDarkMode ? "text-gray-400" : "text-gray-500"}
+            `}
+            >
+              <div
+                className={`
+                px-4 py-2 rounded-lg 
+                ${isDarkMode ? "bg-gray-800/50" : "bg-white/50"}
+              `}
+              >
+                Click "Add Shape" in the controls panel to create your first
+                shape!
+              </div>
+            </div>
+          )}
+
+          {/* Canvas Instructions */}
+          <div
+            className={`
+            absolute bottom-4 left-4 text-xs p-2 rounded pointer-events-none
+            ${
+              isDarkMode
+                ? "text-gray-400 bg-gray-800 bg-opacity-75"
+                : "text-gray-500 bg-white bg-opacity-75"
+            }
+          `}
+          >
             Click: Select | Drag: Move/Pan | Double-click: Zoom | Wheel/Pinch:
             Zoom
           </div>
