@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useCanvasInteraction } from "../../hooks/useCanvasInteraction";
 import { useShapeManagement } from "../../hooks/useShapeManagement";
-import { CollapsibleSidebar } from "../ui/CollapsibleSidebar";
 import { DarkModeToggle } from "../ui/DarkModeToggle";
+import { FloatingCard } from "../ui/FloatingCard";
 import { CanvasArea } from "./CanvasArea";
 import { ControlsPanel } from "./ControlsPanel";
 import { ShapeList } from "./ShapeList";
@@ -11,7 +11,7 @@ import { ShapeList } from "./ShapeList";
 export default function PixelShapeGenerator() {
   const { isDarkMode } = useTheme();
 
-  // Sidebar states
+  // Card states
   const [isControlsPanelOpen, setIsControlsPanelOpen] = useState(false);
   const [isShapeListOpen, setIsShapeListOpen] = useState(false);
 
@@ -55,13 +55,13 @@ export default function PixelShapeGenerator() {
       {/* Dark Mode Toggle */}
       <DarkModeToggle />
 
-      {/* Left Sidebar - Controls Panel */}
-      <CollapsibleSidebar
+      {/* Left Floating Card - Controls Panel */}
+      <FloatingCard
         title="Shape Controls"
         isOpen={isControlsPanelOpen}
         onToggle={() => setIsControlsPanelOpen(!isControlsPanelOpen)}
         position="left"
-        width="w-80"
+        defaultPosition={{ x: 20, y: 100 }}
       >
         <ControlsPanel
           currentShapeType={shapeManagement.currentShapeType}
@@ -80,15 +80,14 @@ export default function PixelShapeGenerator() {
             shapeManagement.handleFormSubmit(getNewShapePosition)
           }
         />
-      </CollapsibleSidebar>
+      </FloatingCard>
 
-      {/* Right Sidebar - Shape List */}
-      <CollapsibleSidebar
+      {/* Right Floating Card - Shape List */}
+      <FloatingCard
         title="Shape List"
         isOpen={isShapeListOpen}
         onToggle={() => setIsShapeListOpen(!isShapeListOpen)}
         position="right"
-        width="w-80"
       >
         <ShapeList
           shapes={shapeManagement.shapes}
@@ -97,7 +96,7 @@ export default function PixelShapeGenerator() {
           onRemoveShape={shapeManagement.removeShape}
           onMoveShapeLayer={shapeManagement.handleMoveShapeLayer}
         />
-      </CollapsibleSidebar>
+      </FloatingCard>
 
       {/* Full Screen Canvas */}
       <CanvasArea

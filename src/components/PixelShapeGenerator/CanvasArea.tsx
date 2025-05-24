@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import type { ShapeData, SnappingGuide } from "../../constants/pixel-shape";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useViewportSize } from "../../hooks/pixel-shape";
@@ -42,6 +42,37 @@ export const CanvasArea = React.memo<CanvasAreaProps>(
       return "grab";
     };
 
+    // Handle wheel events with proper preventDefault
+    useEffect(() => {
+      const container = viewportContainerRef.current;
+      if (!container) return;
+
+      const handleWheel = (e: WheelEvent) => {
+        // Create a React-like wheel event object
+        const syntheticEvent = {
+          preventDefault: () => e.preventDefault(),
+          stopPropagation: () => e.stopPropagation(),
+          clientX: e.clientX,
+          clientY: e.clientY,
+          deltaX: e.deltaX,
+          deltaY: e.deltaY,
+          deltaZ: e.deltaZ,
+          ctrlKey: e.ctrlKey,
+          shiftKey: e.shiftKey,
+          altKey: e.altKey,
+          metaKey: e.metaKey,
+        };
+
+        onWheel(syntheticEvent as React.WheelEvent);
+      };
+
+      container.addEventListener("wheel", handleWheel, { passive: false });
+
+      return () => {
+        container.removeEventListener("wheel", handleWheel);
+      };
+    }, [onWheel]);
+
     return (
       <div className="fixed inset-0 flex flex-col">
         {/* Canvas Controls Header */}
@@ -81,10 +112,14 @@ export const CanvasArea = React.memo<CanvasAreaProps>(
           `}
           style={{
             cursor: getCursor(),
+            touchAction: "none",
+            WebkitUserSelect: "none",
+            MozUserSelect: "none",
+            msUserSelect: "none",
+            userSelect: "none",
           }}
           onMouseDown={onPointerDown}
           onTouchStart={onPointerDown}
-          onWheel={onWheel}
           onContextMenu={(e) => e.preventDefault()}
         >
           <div
@@ -165,8 +200,8 @@ export const CanvasArea = React.memo<CanvasAreaProps>(
             }
           `}
           >
-            Click: Select | Drag: Move/Pan | Double-click: Zoom | Wheel/Pinch:
-            Zoom
+            Click: Select | Drag: Move | Space+Drag: Pan | Double-click: Zoom |
+            Wheel: Zoom | Pinch: Zoom | Two-finger scroll: Pan
           </div>
         </div>
       </div>

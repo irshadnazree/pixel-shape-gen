@@ -8,7 +8,7 @@ export const DarkModeToggle: React.FC = () => {
     <button
       onClick={toggleDarkMode}
       className={`
-        fixed top-4 left-16 z-50 p-2 rounded-lg shadow-lg
+        fixed top-4 right-16 z-50 p-2 rounded-lg shadow-lg
         transition-all duration-200 border
         ${
           isDarkMode

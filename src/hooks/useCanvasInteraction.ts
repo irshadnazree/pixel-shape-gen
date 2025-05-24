@@ -24,12 +24,16 @@ interface CanvasInteractionState {
   snappingGuides: SnappingGuide[];
   isPointerDown: boolean;
   hasMoved: boolean;
+  isSpacePressed: boolean;
 }
 
 interface TouchState {
   lastTouchDistance: number;
   initialZoom: number;
   initialOffset: { x: number; y: number };
+  lastPinchTime: number;
+  pinchVelocity: number;
+  velocityHistory: { distance: number; time: number }[];
 }
 
 export const useCanvasInteraction = ({
@@ -47,6 +51,7 @@ export const useCanvasInteraction = ({
     snappingGuides: [],
     isPointerDown: false,
     hasMoved: false,
+    isSpacePressed: false,
   });
 
   // Interaction state
@@ -56,12 +61,16 @@ export const useCanvasInteraction = ({
     lastTouchDistance: 0,
     initialZoom: 10,
     initialOffset: { x: 0, y: 0 },
+    lastPinchTime: 0,
+    pinchVelocity: 0,
+    velocityHistory: [],
   });
 
   // Refs
   const dragShapeStartOffsetRef = useRef({ x: 0, y: 0 });
   const panStartRef = useRef({ x: 0, y: 0 });
   const viewportContainerRef = useRef<HTMLDivElement>(null);
+  const zoomAnimationRef = useRef<number | null>(null);
 
   // State updates
   const updateState = useCallback((updates: Partial<CanvasInteractionState>) => {
@@ -77,9 +86,89 @@ export const useCanvasInteraction = ({
       snappingGuides: [],
       isPointerDown: false,
       hasMoved: false,
+      isSpacePressed: false,
     });
     onShapeSelect(null);
   }, [onShapeSelect]);
+
+  // Enhanced zoom function with smooth animation
+  const smoothZoom = useCallback((
+    targetZoom: number,
+    mouseX: number,
+    mouseY: number,
+    duration: number = 200
+  ) => {
+    if (zoomAnimationRef.current) {
+      cancelAnimationFrame(zoomAnimationRef.current);
+    }
+
+    const startZoom = state.zoom;
+    const startOffset = { ...state.canvasOffset };
+    const startTime = performance.now();
+
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Smooth easing function
+      const eased = 1 - Math.pow(1 - progress, 3);
+      
+      const currentZoom = startZoom + (targetZoom - startZoom) * eased;
+      
+      // Calculate world coordinates at mouse position
+      const worldX = (mouseX - startOffset.x) / startZoom;
+      const worldY = (mouseY - startOffset.y) / startZoom;
+      
+      const newOffset = {
+        x: mouseX - worldX * currentZoom,
+        y: mouseY - worldY * currentZoom,
+      };
+
+      updateState({
+        zoom: currentZoom,
+        canvasOffset: newOffset,
+      });
+
+      if (progress < 1) {
+        zoomAnimationRef.current = requestAnimationFrame(animate);
+      } else {
+        zoomAnimationRef.current = null;
+      }
+    };
+
+    zoomAnimationRef.current = requestAnimationFrame(animate);
+  }, [state.zoom, state.canvasOffset, updateState]);
+
+  // Handle space key for panning
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !state.isSpacePressed) {
+        e.preventDefault();
+        updateState({ isSpacePressed: true });
+        if (viewportContainerRef.current) {
+          viewportContainerRef.current.style.cursor = 'grab';
+        }
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        updateState({ isSpacePressed: false });
+        if (viewportContainerRef.current) {
+          viewportContainerRef.current.style.cursor = 'default';
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [state.isSpacePressed, updateState]);
 
   // Hit testing
   const hitTest = useCallback(
@@ -123,9 +212,12 @@ export const useCanvasInteraction = ({
           // Two-finger touch - prepare for pinch zoom
           const distance = getTouchDistance(e.touches);
           setTouchState({
-            lastTouchDistance: distance,
+            lastTouchDistance: 0, // Will be set in first move event
             initialZoom: state.zoom,
             initialOffset: state.canvasOffset,
+            lastPinchTime: currentTime,
+            pinchVelocity: 0,
+            velocityHistory: [],
           });
           updateState({
             isPanning: true,
@@ -141,25 +233,19 @@ export const useCanvasInteraction = ({
 
       updateState({ isPointerDown: true, hasMoved: false });
 
-      // Double-click to zoom
+      // Double-click to zoom (with smooth animation)
       if (isDoubleClick && !('touches' in e)) {
         const { left, top } = viewportContainerRef.current.getBoundingClientRect();
         const centerX = e.clientX - left;
         const centerY = e.clientY - top;
 
         const newZoom = Math.min(MAX_ZOOM, state.zoom * 2);
-        const worldX = (centerX - state.canvasOffset.x) / state.zoom;
-        const worldY = (centerY - state.canvasOffset.y) / state.zoom;
-
-        updateState({
-          canvasOffset: {
-            x: centerX - worldX * newZoom,
-            y: centerY - worldY * newZoom,
-          },
-          zoom: newZoom,
-        });
+        smoothZoom(newZoom, centerX, centerY);
         return;
       }
+
+      // Check if space is pressed for force panning
+      const shouldForcePan = state.isSpacePressed;
 
       // Single click/touch - check for shape hit
       const { left, top } = viewportContainerRef.current.getBoundingClientRect();
@@ -170,7 +256,7 @@ export const useCanvasInteraction = ({
 
       const hitShape = hitTest(mouseXWorld, mouseYWorld);
 
-      if (hitShape) {
+      if (hitShape && !shouldForcePan) {
         onShapeSelect(hitShape.id);
         dragShapeStartOffsetRef.current = {
           x: mouseXWorld - hitShape.position.x,
@@ -180,9 +266,12 @@ export const useCanvasInteraction = ({
         // Prepare for panning
         updateState({ isPanning: true });
         panStartRef.current = { x: clientX, y: clientY };
+        if (viewportContainerRef.current) {
+          viewportContainerRef.current.style.cursor = 'grabbing';
+        }
       }
     },
-    [state.canvasOffset, state.zoom, hitTest, lastClickTime, onShapeSelect, updateState]
+    [state.canvasOffset, state.zoom, state.isSpacePressed, hitTest, lastClickTime, onShapeSelect, updateState, smoothZoom]
   );
 
   // Handle pointer move
@@ -197,32 +286,92 @@ export const useCanvasInteraction = ({
       // Handle touch events
       if ('touches' in e) {
         if (e.touches.length === 2) {
-          // Two-finger pinch zoom
+          // Two-finger pinch zoom with velocity-based scaling
           const touchCenter = getTouchCenter(e.touches);
           const currentDistance = getTouchDistance(e.touches);
+          const currentTime = performance.now();
 
           if (touchState.lastTouchDistance > 0) {
-            const zoomDelta = currentDistance / touchState.lastTouchDistance;
-            const newZoom = Math.max(
-              MIN_ZOOM,
-              Math.min(MAX_ZOOM, touchState.initialZoom * zoomDelta)
-            );
+            // Calculate velocity-based zoom
+            const distanceChange = currentDistance - touchState.lastTouchDistance;
+            const timeChange = currentTime - touchState.lastPinchTime;
+            
+            if (timeChange > 0) {
+              // Calculate instantaneous velocity (pixels per millisecond)
+              const instantVelocity = distanceChange / timeChange;
+              
+              // Add to velocity history for smoothing
+              const newVelocityHistory = [
+                ...touchState.velocityHistory,
+                { distance: currentDistance, time: currentTime }
+              ].slice(-5); // Keep last 5 samples for smoothing
+              
+              // Calculate smoothed velocity from history
+              let smoothedVelocity = instantVelocity;
+              if (newVelocityHistory.length >= 2) {
+                const firstSample = newVelocityHistory[0];
+                const lastSample = newVelocityHistory[newVelocityHistory.length - 1];
+                const totalDistanceChange = lastSample.distance - firstSample.distance;
+                const totalTimeChange = lastSample.time - firstSample.time;
+                
+                if (totalTimeChange > 0) {
+                  smoothedVelocity = totalDistanceChange / totalTimeChange;
+                }
+              }
+              
+              // Apply velocity-based zoom scaling
+              // Scale velocity to zoom factor (much more aggressive values)
+              const velocityScale = 0.2; // Even more dramatic for instant response
+              const maxVelocityEffect = 1.5; // Allow huge velocity-based zoom jumps
+              const velocityZoomDelta = Math.max(
+                -maxVelocityEffect,
+                Math.min(maxVelocityEffect, smoothedVelocity * velocityScale)
+              );
+              
+              // Combine with distance-based zoom for stability
+              const distanceRatio = currentDistance / touchState.lastTouchDistance;
+              const distanceZoomDelta = (distanceRatio - 1) * 8.0; // Much more aggressive - 8x multiplier!
+              
+              // Final zoom delta combines both velocity and distance
+              const finalZoomDelta = velocityZoomDelta + distanceZoomDelta;
+              const newZoom = Math.max(
+                MIN_ZOOM,
+                Math.min(MAX_ZOOM, state.zoom * (1 + finalZoomDelta))
+              );
 
-            const { left, top } = viewportContainerRef.current.getBoundingClientRect();
-            const centerX = touchCenter.x - left;
-            const centerY = touchCenter.y - top;
+              const { left, top } = viewportContainerRef.current.getBoundingClientRect();
+              const centerX = touchCenter.x - left;
+              const centerY = touchCenter.y - top;
 
-            const worldX = (centerX - touchState.initialOffset.x) / touchState.initialZoom;
-            const worldY = (centerY - touchState.initialOffset.y) / touchState.initialZoom;
+              const worldX = (centerX - state.canvasOffset.x) / state.zoom;
+              const worldY = (centerY - state.canvasOffset.y) / state.zoom;
 
-            updateState({
-              canvasOffset: {
-                x: centerX - worldX * newZoom,
-                y: centerY - worldY * newZoom,
-              },
-              zoom: newZoom,
-              hasMoved: true,
-            });
+              updateState({
+                canvasOffset: {
+                  x: centerX - worldX * newZoom,
+                  y: centerY - worldY * newZoom,
+                },
+                zoom: newZoom,
+                hasMoved: true,
+              });
+              
+              // Update touch state with new velocity data
+              setTouchState(prev => ({
+                ...prev,
+                lastTouchDistance: currentDistance,
+                lastPinchTime: currentTime,
+                pinchVelocity: smoothedVelocity,
+                velocityHistory: newVelocityHistory,
+              }));
+            }
+          } else {
+            // Initialize for first measurement
+            setTouchState(prev => ({
+              ...prev,
+              lastTouchDistance: currentDistance,
+              lastPinchTime: currentTime,
+              velocityHistory: [{ distance: currentDistance, time: currentTime }],
+            }));
           }
           return;
         } else {
@@ -243,7 +392,10 @@ export const useCanvasInteraction = ({
         updateState({ hasMoved: true });
       }
 
-      if (selectedShapeId && !state.isPanning) {
+      // Force panning if space is pressed or if explicitly panning
+      const shouldPan = state.isPanning || state.isSpacePressed;
+
+      if (selectedShapeId && !shouldPan) {
         // Shape dragging
         if (distance > DRAG_THRESHOLD) {
           updateState({ isDraggingShape: true });
@@ -314,8 +466,8 @@ export const useCanvasInteraction = ({
 
           onShapeMove(selectedShapeId, finalPos);
         }
-      } else if (state.isPanning && state.hasMoved) {
-        // Canvas panning
+      } else if (shouldPan && state.hasMoved) {
+        // Canvas panning (improved for smoother feel)
         const dx = clientX - panStartRef.current.x;
         const dy = clientY - panStartRef.current.y;
         updateState({
@@ -355,53 +507,118 @@ export const useCanvasInteraction = ({
         snappingGuides: [],
         hasMoved: false,
       });
-      setTouchState(prev => ({ ...prev, lastTouchDistance: 0 }));
+      setTouchState(prev => ({ 
+        ...prev, 
+        lastTouchDistance: 0,
+        pinchVelocity: 0,
+        velocityHistory: [],
+      }));
+      
+      // Reset cursor
+      if (viewportContainerRef.current) {
+        viewportContainerRef.current.style.cursor = state.isSpacePressed ? 'grab' : 'default';
+      }
     },
-    [state.hasMoved, state.isDraggingShape, state.isPanning, selectedShapeId, onShapeSelect, updateState]
+    [state.hasMoved, state.isDraggingShape, state.isPanning, state.isSpacePressed, selectedShapeId, onShapeSelect, updateState]
   );
 
-  // Handle wheel zoom
+  // Enhanced wheel zoom (Figma-like)
   const handleWheelZoom = useCallback(
     (e: React.WheelEvent) => {
       if (!viewportContainerRef.current) return;
 
+      // Always prevent default to stop browser zoom
       e.preventDefault();
-
-      let delta: number;
-      if (e.ctrlKey) {
-        // Pinch gesture on trackpad
-        delta = -e.deltaY * 0.01;
-      } else {
-        // Regular scroll
-        delta = e.deltaY < 0 ? 0.1 : -0.1;
-      }
-
-      const zoomFactor = 1 + delta;
-      const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, state.zoom * zoomFactor));
+      e.stopPropagation();
 
       const { left, top } = viewportContainerRef.current.getBoundingClientRect();
-      const mX = e.clientX - left;
-      const mY = e.clientY - top;
-      const wXBefore = (mX - state.canvasOffset.x) / state.zoom;
-      const wYBefore = (mY - state.canvasOffset.y) / state.zoom;
+      const mouseX = e.clientX - left;
+      const mouseY = e.clientY - top;
 
-      updateState({
-        canvasOffset: {
-          x: mX - wXBefore * newZoom,
-          y: mY - wYBefore * newZoom,
-        },
-        zoom: newZoom,
-      });
+      // Detect different input types
+      const isPinchGesture = e.ctrlKey;
+      const isTrackpadScroll = Math.abs(e.deltaX) > 0 || (Math.abs(e.deltaY) < 100 && !isPinchGesture);
+      const isMouseWheel = Math.abs(e.deltaY) >= 100 && !isPinchGesture;
+
+      if (isPinchGesture) {
+        // Pinch to zoom
+        const zoomDelta = -e.deltaY * 0.01;
+        const zoomFactor = Math.pow(1.1, zoomDelta);
+        const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, state.zoom * zoomFactor));
+
+        const worldX = (mouseX - state.canvasOffset.x) / state.zoom;
+        const worldY = (mouseY - state.canvasOffset.y) / state.zoom;
+
+        updateState({
+          canvasOffset: {
+            x: mouseX - worldX * newZoom,
+            y: mouseY - worldY * newZoom,
+          },
+          zoom: newZoom,
+        });
+      } else if (isTrackpadScroll) {
+        // Two-finger scroll for panning
+        updateState({
+          canvasOffset: {
+            x: state.canvasOffset.x - e.deltaX,
+            y: state.canvasOffset.y - e.deltaY,
+          },
+        });
+      } else if (isMouseWheel) {
+        // Mouse wheel for zooming
+        const zoomDelta = e.deltaY < 0 ? 0.2 : -0.2;
+        const zoomFactor = Math.pow(1.1, zoomDelta);
+        const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, state.zoom * zoomFactor));
+
+        // Use smooth animation for mouse wheel
+        smoothZoom(newZoom, mouseX, mouseY, 150);
+      }
     },
-    [state.zoom, state.canvasOffset, updateState]
+    [state.zoom, state.canvasOffset, updateState, smoothZoom]
   );
+
+  // Handle gesture events (for Safari)
+  const handleGestureStart = useCallback((e: Event) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleGestureChange = useCallback((e: Event) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleGestureEnd = useCallback((e: Event) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  // Event listeners
+  useEffect(() => {
+    const container = viewportContainerRef.current;
+    if (!container) return;
+
+    // Add gesture event listeners for Safari
+    container.addEventListener('gesturestart', handleGestureStart, { passive: false });
+    container.addEventListener('gesturechange', handleGestureChange, { passive: false });
+    container.addEventListener('gestureend', handleGestureEnd, { passive: false });
+
+    return () => {
+      container.removeEventListener('gesturestart', handleGestureStart);
+      container.removeEventListener('gesturechange', handleGestureChange);
+      container.removeEventListener('gestureend', handleGestureEnd);
+    };
+  }, [handleGestureStart, handleGestureChange, handleGestureEnd]);
 
   // Event listeners
   useEffect(() => {
     if (state.isPointerDown) {
       const handleMouseMove = (e: MouseEvent) => handlePointerMove(e);
       const handleMouseUp = (e: MouseEvent) => handlePointerUp(e);
-      const handleTouchMove = (e: TouchEvent) => handlePointerMove(e);
+      const handleTouchMove = (e: TouchEvent) => {
+        e.preventDefault(); // Prevent scrolling
+        handlePointerMove(e);
+      };
       const handleTouchEnd = (e: TouchEvent) => handlePointerUp(e);
 
       document.addEventListener('mousemove', handleMouseMove);
@@ -417,6 +634,15 @@ export const useCanvasInteraction = ({
       };
     }
   }, [state.isPointerDown, handlePointerMove, handlePointerUp]);
+
+  // Cleanup animation on unmount
+  useEffect(() => {
+    return () => {
+      if (zoomAnimationRef.current) {
+        cancelAnimationFrame(zoomAnimationRef.current);
+      }
+    };
+  }, []);
 
   return {
     ...state,
