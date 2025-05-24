@@ -210,7 +210,6 @@ export const useCanvasInteraction = ({
 
         if (e.touches.length === 2) {
           // Two-finger touch - prepare for pinch zoom
-          const distance = getTouchDistance(e.touches);
           setTouchState({
             lastTouchDistance: 0, // Will be set in first move event
             initialZoom: state.zoom,
