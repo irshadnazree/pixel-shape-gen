@@ -17,8 +17,8 @@ import { Slider } from '../ui/slider';
 interface ControlsPanelProps {
   // Form state
   currentShapeType: ShapeType;
-  width: number;
-  height: number;
+  width: number | null;
+  height: number | null;
   currentShapeBaseColor: string;
   currentShapeOpacity: number;
   isEditing: boolean;
@@ -94,13 +94,13 @@ export const ControlsPanel = React.memo<ControlsPanelProps>(
                 <div className='relative'>
                   <Input
                     id='width'
-                    type='number'
-                    value={width}
+                    type='text'
+                    value={width || ''}
                     onChange={onWidthChange}
-                    min='1'
-                    max='100'
                     placeholder='Width'
-                    className='pr-8'
+                    className='pr-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]'
+                    pattern='[0-9]*'
+                    inputMode='numeric'
                   />
                   <span className='absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-muted-foreground'>
                     px
@@ -114,13 +114,13 @@ export const ControlsPanel = React.memo<ControlsPanelProps>(
                 <div className='relative'>
                   <Input
                     id='height'
-                    type='number'
-                    value={height}
+                    type='text'
+                    value={height || ''}
                     onChange={onHeightChange}
-                    min='1'
-                    max='100'
                     placeholder='Height'
-                    className='pr-8'
+                    className='pr-8 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]'
+                    pattern='[0-9]*'
+                    inputMode='numeric'
                   />
                   <span className='absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-muted-foreground'>
                     px

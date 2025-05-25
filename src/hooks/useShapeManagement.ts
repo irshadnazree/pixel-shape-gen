@@ -9,8 +9,8 @@ export const useShapeManagement = () => {
   // Form state
   const [currentShapeType, setCurrentShapeType] =
     useState<ShapeType>('ellipse');
-  const [width, setWidth] = useState(10);
-  const [height, setHeight] = useState(10);
+  const [width, setWidth] = useState<number | null>(10);
+  const [height, setHeight] = useState<number | null>(10);
   const [currentShapeBaseColor, setCurrentShapeBaseColor] = useState('#007BFF');
   const [currentShapeOpacity, setCurrentShapeOpacity] = useState(1);
 
@@ -44,14 +44,28 @@ export const useShapeManagement = () => {
 
   // Form change handlers
   const handleWidthChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) =>
-      setWidth(Math.max(1, parseInt(e.target.value) || 1)),
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value.trim();
+      if (value === '') {
+        setWidth(null);
+      } else {
+        const numValue = parseInt(value);
+        setWidth(isNaN(numValue) ? null : numValue);
+      }
+    },
     []
   );
 
   const handleHeightChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) =>
-      setHeight(Math.max(1, parseInt(e.target.value) || 1)),
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value.trim();
+      if (value === '') {
+        setHeight(null);
+      } else {
+        const numValue = parseInt(value);
+        setHeight(isNaN(numValue) ? null : numValue);
+      }
+    },
     []
   );
 
@@ -71,15 +85,37 @@ export const useShapeManagement = () => {
     []
   );
 
+  // Validation helper
+  const validateDimensions = useCallback(() => {
+    const errors: string[] = [];
+
+    if (width === null || width <= 0) {
+      errors.push('Width must be a positive number');
+    }
+
+    if (height === null || height <= 0) {
+      errors.push('Height must be a positive number');
+    }
+
+    return errors;
+  }, [width, height]);
+
   // Shape operations - these will be called with position from canvas interaction
   const addShape = useCallback(
     (position: { x: number; y: number }) => {
+      const validationErrors = validateDimensions();
+
+      if (validationErrors.length > 0) {
+        alert(`Cannot add shape:\n${validationErrors.join('\n')}`);
+        return;
+      }
+
       const newShapeId = Date.now();
       const newShape: ShapeData = {
         id: newShapeId,
         type: currentShapeType,
-        width,
-        height,
+        width: width!,
+        height: height!,
         baseColor: currentShapeBaseColor,
         opacity: currentShapeOpacity,
         position: { x: Math.round(position.x), y: Math.round(position.y) },
@@ -95,19 +131,27 @@ export const useShapeManagement = () => {
       currentShapeOpacity,
       currentShapeType,
       resetFormToDefaults,
+      validateDimensions,
     ]
   );
 
   const updateSelectedShape = useCallback(() => {
     if (!selectedShapeId) return;
 
+    const validationErrors = validateDimensions();
+
+    if (validationErrors.length > 0) {
+      alert(`Cannot update shape:\n${validationErrors.join('\n')}`);
+      return;
+    }
+
     setShapes((prevShapes) =>
       prevShapes.map((s) =>
         s.id === selectedShapeId
           ? {
               ...s,
-              width,
-              height,
+              width: width!,
+              height: height!,
               baseColor: currentShapeBaseColor,
               opacity: currentShapeOpacity,
             }
@@ -122,6 +166,7 @@ export const useShapeManagement = () => {
     currentShapeBaseColor,
     currentShapeOpacity,
     resetFormToDefaults,
+    validateDimensions,
   ]);
 
   const handleFormSubmit = useCallback(

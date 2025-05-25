@@ -36,10 +36,10 @@ export default function PixelShapeGenerator() {
         canvasInteraction.viewportContainerRef.current.getBoundingClientRect();
       initialX =
         (cw / 2 - canvasInteraction.canvasOffset.x) / canvasInteraction.zoom -
-        shapeManagement.width / 2;
+        (shapeManagement.width ?? 0) / 2;
       initialY =
         (ch / 2 - canvasInteraction.canvasOffset.y) / canvasInteraction.zoom -
-        shapeManagement.height / 2;
+        (shapeManagement.height ?? 0) / 2;
     }
 
     return { x: initialX, y: initialY };
