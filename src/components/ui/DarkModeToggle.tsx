@@ -10,7 +10,7 @@ export const DarkModeToggle: React.FC = () => {
       onClick={toggleDarkMode}
       variant='outline'
       size='icon'
-      className='fixed top-4 right-16 z-50 shadow-lg'
+      className='fixed top-4 right-14 z-50 shadow-lg'
       title={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
     >
       {isDarkMode ? (
