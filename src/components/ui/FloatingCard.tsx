@@ -151,7 +151,7 @@ export const FloatingCard: React.FC<FloatingCardProps> = ({
           top: `${cardPosition.y}px`,
         }}
       >
-        <CardHeader className='pb-3'>
+        <CardHeader>
           <CardTitle className='text-lg'>{title}</CardTitle>
         </CardHeader>
         <CardContent className='flex-1 overflow-y-auto max-h-[calc(90vh-80px)]'>

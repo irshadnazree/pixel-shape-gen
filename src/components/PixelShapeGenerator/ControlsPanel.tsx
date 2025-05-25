@@ -53,8 +53,8 @@ export const ControlsPanel = React.memo<ControlsPanelProps>(
       <div className='h-full flex flex-col space-y-4'>
         {/* Shape Type Selection */}
         <Card>
-          <CardHeader className='pb-3'>
-            <CardTitle className='text-sm font-semibold uppercase tracking-wider'>
+          <CardHeader>
+            <CardTitle className='text-sm font-semibold tracking-wider'>
               Shape Type
             </CardTitle>
           </CardHeader>
@@ -80,8 +80,8 @@ export const ControlsPanel = React.memo<ControlsPanelProps>(
 
         {/* Dimensions */}
         <Card>
-          <CardHeader className='pb-3'>
-            <CardTitle className='text-sm font-semibold uppercase tracking-wider'>
+          <CardHeader>
+            <CardTitle className='text-sm font-semibold tracking-wider'>
               Dimensions
             </CardTitle>
           </CardHeader>
@@ -133,8 +133,8 @@ export const ControlsPanel = React.memo<ControlsPanelProps>(
 
         {/* Appearance */}
         <Card className='flex-1'>
-          <CardHeader className='pb-3'>
-            <CardTitle className='text-sm font-semibold uppercase tracking-wider'>
+          <CardHeader>
+            <CardTitle className='text-sm font-semibold tracking-wider'>
               Appearance
             </CardTitle>
           </CardHeader>

@@ -82,8 +82,8 @@ export const ShapeList = React.memo<ShapeListProps>(
       return (
         <div className='h-full flex flex-col'>
           <Card>
-            <CardHeader className='pb-3'>
-              <CardTitle className='text-sm font-semibold uppercase tracking-wider'>
+            <CardHeader>
+              <CardTitle className='text-sm font-semibold  tracking-wider'>
                 Shape List
               </CardTitle>
             </CardHeader>
@@ -100,8 +100,8 @@ export const ShapeList = React.memo<ShapeListProps>(
     return (
       <div className='h-full flex flex-col space-y-4'>
         <Card>
-          <CardHeader className='pb-3'>
-            <CardTitle className='text-sm font-semibold uppercase tracking-wider'>
+          <CardHeader>
+            <CardTitle className='text-sm font-semibold tracking-wider'>
               Shape List ({shapes.length})
             </CardTitle>
           </CardHeader>
