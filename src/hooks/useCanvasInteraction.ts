@@ -73,9 +73,12 @@ export const useCanvasInteraction = ({
   const zoomAnimationRef = useRef<number | null>(null);
 
   // State updates
-  const updateState = useCallback((updates: Partial<CanvasInteractionState>) => {
-    setState(prev => ({ ...prev, ...updates }));
-  }, []);
+  const updateState = useCallback(
+    (updates: Partial<CanvasInteractionState>) => {
+      setState((prev) => ({ ...prev, ...updates }));
+    },
+    []
+  );
 
   const resetView = useCallback(() => {
     setState({
@@ -92,52 +95,55 @@ export const useCanvasInteraction = ({
   }, [onShapeSelect]);
 
   // Enhanced zoom function with smooth animation
-  const smoothZoom = useCallback((
-    targetZoom: number,
-    mouseX: number,
-    mouseY: number,
-    duration: number = 200
-  ) => {
-    if (zoomAnimationRef.current) {
-      cancelAnimationFrame(zoomAnimationRef.current);
-    }
+  const smoothZoom = useCallback(
+    (
+      targetZoom: number,
+      mouseX: number,
+      mouseY: number,
+      duration: number = 100 // Reduced default from 200ms to 100ms for faster response
+    ) => {
+      if (zoomAnimationRef.current) {
+        cancelAnimationFrame(zoomAnimationRef.current);
+      }
 
-    const startZoom = state.zoom;
-    const startOffset = { ...state.canvasOffset };
-    const startTime = performance.now();
+      const startZoom = state.zoom;
+      const startOffset = { ...state.canvasOffset };
+      const startTime = performance.now();
 
-    const animate = (currentTime: number) => {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      
-      // Smooth easing function
-      const eased = 1 - Math.pow(1 - progress, 3);
-      
-      const currentZoom = startZoom + (targetZoom - startZoom) * eased;
-      
-      // Calculate world coordinates at mouse position
-      const worldX = (mouseX - startOffset.x) / startZoom;
-      const worldY = (mouseY - startOffset.y) / startZoom;
-      
-      const newOffset = {
-        x: mouseX - worldX * currentZoom,
-        y: mouseY - worldY * currentZoom,
+      const animate = (currentTime: number) => {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+
+        // Faster easing function for more responsive feel
+        const eased = 1 - Math.pow(1 - progress, 2); // Changed from cubic to quadratic for faster response
+
+        const currentZoom = startZoom + (targetZoom - startZoom) * eased;
+
+        // Calculate world coordinates at mouse position
+        const worldX = (mouseX - startOffset.x) / startZoom;
+        const worldY = (mouseY - startOffset.y) / startZoom;
+
+        const newOffset = {
+          x: mouseX - worldX * currentZoom,
+          y: mouseY - worldY * currentZoom,
+        };
+
+        updateState({
+          zoom: currentZoom,
+          canvasOffset: newOffset,
+        });
+
+        if (progress < 1) {
+          zoomAnimationRef.current = requestAnimationFrame(animate);
+        } else {
+          zoomAnimationRef.current = null;
+        }
       };
 
-      updateState({
-        zoom: currentZoom,
-        canvasOffset: newOffset,
-      });
-
-      if (progress < 1) {
-        zoomAnimationRef.current = requestAnimationFrame(animate);
-      } else {
-        zoomAnimationRef.current = null;
-      }
-    };
-
-    zoomAnimationRef.current = requestAnimationFrame(animate);
-  }, [state.zoom, state.canvasOffset, updateState]);
+      zoomAnimationRef.current = requestAnimationFrame(animate);
+    },
+    [state.zoom, state.canvasOffset, updateState]
+  );
 
   // Handle space key for panning
   useEffect(() => {
@@ -234,12 +240,13 @@ export const useCanvasInteraction = ({
 
       // Double-click to zoom (with smooth animation)
       if (isDoubleClick && !('touches' in e)) {
-        const { left, top } = viewportContainerRef.current.getBoundingClientRect();
+        const { left, top } =
+          viewportContainerRef.current.getBoundingClientRect();
         const centerX = e.clientX - left;
         const centerY = e.clientY - top;
 
-        const newZoom = Math.min(MAX_ZOOM, state.zoom * 2);
-        smoothZoom(newZoom, centerX, centerY);
+        const newZoom = Math.min(MAX_ZOOM, state.zoom * 3); // Increased from 2x to 3x for faster zoom
+        smoothZoom(newZoom, centerX, centerY, 80); // Even faster animation for double-click
         return;
       }
 
@@ -247,7 +254,8 @@ export const useCanvasInteraction = ({
       const shouldForcePan = state.isSpacePressed;
 
       // Single click/touch - check for shape hit
-      const { left, top } = viewportContainerRef.current.getBoundingClientRect();
+      const { left, top } =
+        viewportContainerRef.current.getBoundingClientRect();
       const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
       const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
       const mouseXWorld = (clientX - left - state.canvasOffset.x) / state.zoom;
@@ -270,7 +278,16 @@ export const useCanvasInteraction = ({
         }
       }
     },
-    [state.canvasOffset, state.zoom, state.isSpacePressed, hitTest, lastClickTime, onShapeSelect, updateState, smoothZoom]
+    [
+      state.canvasOffset,
+      state.zoom,
+      state.isSpacePressed,
+      hitTest,
+      lastClickTime,
+      onShapeSelect,
+      updateState,
+      smoothZoom,
+    ]
   );
 
   // Handle pointer move
@@ -292,32 +309,35 @@ export const useCanvasInteraction = ({
 
           if (touchState.lastTouchDistance > 0) {
             // Calculate velocity-based zoom
-            const distanceChange = currentDistance - touchState.lastTouchDistance;
+            const distanceChange =
+              currentDistance - touchState.lastTouchDistance;
             const timeChange = currentTime - touchState.lastPinchTime;
-            
+
             if (timeChange > 0) {
               // Calculate instantaneous velocity (pixels per millisecond)
               const instantVelocity = distanceChange / timeChange;
-              
+
               // Add to velocity history for smoothing
               const newVelocityHistory = [
                 ...touchState.velocityHistory,
-                { distance: currentDistance, time: currentTime }
+                { distance: currentDistance, time: currentTime },
               ].slice(-5); // Keep last 5 samples for smoothing
-              
+
               // Calculate smoothed velocity from history
               let smoothedVelocity = instantVelocity;
               if (newVelocityHistory.length >= 2) {
                 const firstSample = newVelocityHistory[0];
-                const lastSample = newVelocityHistory[newVelocityHistory.length - 1];
-                const totalDistanceChange = lastSample.distance - firstSample.distance;
+                const lastSample =
+                  newVelocityHistory[newVelocityHistory.length - 1];
+                const totalDistanceChange =
+                  lastSample.distance - firstSample.distance;
                 const totalTimeChange = lastSample.time - firstSample.time;
-                
+
                 if (totalTimeChange > 0) {
                   smoothedVelocity = totalDistanceChange / totalTimeChange;
                 }
               }
-              
+
               // Apply velocity-based zoom scaling
               // Scale velocity to zoom factor (much more aggressive values)
               const velocityScale = 0.2; // Even more dramatic for instant response
@@ -326,11 +346,12 @@ export const useCanvasInteraction = ({
                 -maxVelocityEffect,
                 Math.min(maxVelocityEffect, smoothedVelocity * velocityScale)
               );
-              
+
               // Combine with distance-based zoom for stability
-              const distanceRatio = currentDistance / touchState.lastTouchDistance;
+              const distanceRatio =
+                currentDistance / touchState.lastTouchDistance;
               const distanceZoomDelta = (distanceRatio - 1) * 8.0; // Much more aggressive - 8x multiplier!
-              
+
               // Final zoom delta combines both velocity and distance
               const finalZoomDelta = velocityZoomDelta + distanceZoomDelta;
               const newZoom = Math.max(
@@ -338,7 +359,8 @@ export const useCanvasInteraction = ({
                 Math.min(MAX_ZOOM, state.zoom * (1 + finalZoomDelta))
               );
 
-              const { left, top } = viewportContainerRef.current.getBoundingClientRect();
+              const { left, top } =
+                viewportContainerRef.current.getBoundingClientRect();
               const centerX = touchCenter.x - left;
               const centerY = touchCenter.y - top;
 
@@ -353,9 +375,9 @@ export const useCanvasInteraction = ({
                 zoom: newZoom,
                 hasMoved: true,
               });
-              
+
               // Update touch state with new velocity data
-              setTouchState(prev => ({
+              setTouchState((prev) => ({
                 ...prev,
                 lastTouchDistance: currentDistance,
                 lastPinchTime: currentTime,
@@ -365,11 +387,13 @@ export const useCanvasInteraction = ({
             }
           } else {
             // Initialize for first measurement
-            setTouchState(prev => ({
+            setTouchState((prev) => ({
               ...prev,
               lastTouchDistance: currentDistance,
               lastPinchTime: currentTime,
-              velocityHistory: [{ distance: currentDistance, time: currentTime }],
+              velocityHistory: [
+                { distance: currentDistance, time: currentTime },
+              ],
             }));
           }
           return;
@@ -399,12 +423,17 @@ export const useCanvasInteraction = ({
         if (distance > DRAG_THRESHOLD) {
           updateState({ isDraggingShape: true });
 
-          const currentMovingShape = shapes.find(s => s.id === selectedShapeId);
+          const currentMovingShape = shapes.find(
+            (s) => s.id === selectedShapeId
+          );
           if (!currentMovingShape) return;
 
-          const { left, top } = viewportContainerRef.current.getBoundingClientRect();
-          const mouseXWorld = (clientX - left - state.canvasOffset.x) / state.zoom;
-          const mouseYWorld = (clientY - top - state.canvasOffset.y) / state.zoom;
+          const { left, top } =
+            viewportContainerRef.current.getBoundingClientRect();
+          const mouseXWorld =
+            (clientX - left - state.canvasOffset.x) / state.zoom;
+          const mouseYWorld =
+            (clientY - top - state.canvasOffset.y) / state.zoom;
 
           let tentativePos = {
             x: mouseXWorld - dragShapeStartOffsetRef.current.x,
@@ -414,19 +443,25 @@ export const useCanvasInteraction = ({
           // Snapping logic
           const activeGuides: SnappingGuide[] = [];
           const snapThresholdWorld = SNAP_THRESHOLD_SCREEN / state.zoom;
-          let currentDraggedCenterX = tentativePos.x + currentMovingShape.width / 2;
-          let currentDraggedCenterY = tentativePos.y + currentMovingShape.height / 2;
+          let currentDraggedCenterX =
+            tentativePos.x + currentMovingShape.width / 2;
+          let currentDraggedCenterY =
+            tentativePos.y + currentMovingShape.height / 2;
 
-          shapes.forEach(otherShape => {
+          shapes.forEach((otherShape) => {
             if (otherShape.id === selectedShapeId) return;
 
             const otherCenterX = otherShape.position.x + otherShape.width / 2;
             const otherCenterY = otherShape.position.y + otherShape.height / 2;
 
             // Vertical snapping
-            if (Math.abs(currentDraggedCenterX - otherCenterX) < snapThresholdWorld) {
+            if (
+              Math.abs(currentDraggedCenterX - otherCenterX) <
+              snapThresholdWorld
+            ) {
               tentativePos.x = otherCenterX - currentMovingShape.width / 2;
-              currentDraggedCenterX = tentativePos.x + currentMovingShape.width / 2;
+              currentDraggedCenterX =
+                tentativePos.x + currentMovingShape.width / 2;
               activeGuides.push({
                 id: `v-${otherShape.id}`,
                 type: 'V',
@@ -440,8 +475,12 @@ export const useCanvasInteraction = ({
             }
 
             // Horizontal snapping
-            currentDraggedCenterY = tentativePos.y + currentMovingShape.height / 2;
-            if (Math.abs(currentDraggedCenterY - otherCenterY) < snapThresholdWorld) {
+            currentDraggedCenterY =
+              tentativePos.y + currentMovingShape.height / 2;
+            if (
+              Math.abs(currentDraggedCenterY - otherCenterY) <
+              snapThresholdWorld
+            ) {
               tentativePos.y = otherCenterY - currentMovingShape.height / 2;
               activeGuides.push({
                 id: `h-${otherShape.id}`,
@@ -492,7 +531,12 @@ export const useCanvasInteraction = ({
   // Handle pointer up
   const handlePointerUp = useCallback(
     (_e: MouseEvent | TouchEvent) => {
-      if (!state.hasMoved && !state.isDraggingShape && !state.isPanning && selectedShapeId) {
+      if (
+        !state.hasMoved &&
+        !state.isDraggingShape &&
+        !state.isPanning &&
+        selectedShapeId
+      ) {
         // Single click on shape without dragging - keep it selected
       } else if (!state.hasMoved && !selectedShapeId) {
         // Single click on empty canvas - deselect
@@ -506,19 +550,29 @@ export const useCanvasInteraction = ({
         snappingGuides: [],
         hasMoved: false,
       });
-      setTouchState(prev => ({ 
-        ...prev, 
+      setTouchState((prev) => ({
+        ...prev,
         lastTouchDistance: 0,
         pinchVelocity: 0,
         velocityHistory: [],
       }));
-      
+
       // Reset cursor
       if (viewportContainerRef.current) {
-        viewportContainerRef.current.style.cursor = state.isSpacePressed ? 'grab' : 'default';
+        viewportContainerRef.current.style.cursor = state.isSpacePressed
+          ? 'grab'
+          : 'default';
       }
     },
-    [state.hasMoved, state.isDraggingShape, state.isPanning, state.isSpacePressed, selectedShapeId, onShapeSelect, updateState]
+    [
+      state.hasMoved,
+      state.isDraggingShape,
+      state.isPanning,
+      state.isSpacePressed,
+      selectedShapeId,
+      onShapeSelect,
+      updateState,
+    ]
   );
 
   // Enhanced wheel zoom (Figma-like)
@@ -530,20 +584,30 @@ export const useCanvasInteraction = ({
       e.preventDefault();
       e.stopPropagation();
 
-      const { left, top } = viewportContainerRef.current.getBoundingClientRect();
+      const { left, top } =
+        viewportContainerRef.current.getBoundingClientRect();
       const mouseX = e.clientX - left;
       const mouseY = e.clientY - top;
 
       // Detect different input types
       const isPinchGesture = e.ctrlKey;
-      const isTrackpadScroll = Math.abs(e.deltaX) > 0 || (Math.abs(e.deltaY) < 100 && !isPinchGesture);
-      const isMouseWheel = Math.abs(e.deltaY) >= 100 && !isPinchGesture;
 
-      if (isPinchGesture) {
-        // Pinch to zoom
-        const zoomDelta = -e.deltaY * 0.01;
-        const zoomFactor = Math.pow(1.1, zoomDelta);
-        const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, state.zoom * zoomFactor));
+      // Better detection: Only treat as trackpad scroll if there's significant horizontal movement
+      // AND the user is holding Shift (common convention for horizontal scrolling)
+      const isTrackpadScroll =
+        e.shiftKey && Math.abs(e.deltaX) > Math.abs(e.deltaY);
+
+      // Everything else is treated as zoom (mouse wheel or trackpad pinch)
+      const shouldZoom = !isTrackpadScroll;
+
+      if (isPinchGesture && shouldZoom) {
+        // Pinch to zoom - direct response, more responsive
+        const zoomDelta = -e.deltaY * 0.02; // Reduced from 0.05 to 0.02 for smoother pinch
+        const zoomFactor = Math.pow(1.15, zoomDelta); // Reduced from 1.2 to 1.15 for smoother pinch
+        const newZoom = Math.max(
+          MIN_ZOOM,
+          Math.min(MAX_ZOOM, state.zoom * zoomFactor)
+        );
 
         const worldX = (mouseX - state.canvasOffset.x) / state.zoom;
         const worldY = (mouseY - state.canvasOffset.y) / state.zoom;
@@ -556,21 +620,33 @@ export const useCanvasInteraction = ({
           zoom: newZoom,
         });
       } else if (isTrackpadScroll) {
-        // Two-finger scroll for panning
+        // Two-finger scroll for panning (only when Shift is held)
         updateState({
           canvasOffset: {
             x: state.canvasOffset.x - e.deltaX,
             y: state.canvasOffset.y - e.deltaY,
           },
         });
-      } else if (isMouseWheel) {
-        // Mouse wheel for zooming
-        const zoomDelta = e.deltaY < 0 ? 0.2 : -0.2;
-        const zoomFactor = Math.pow(1.1, zoomDelta);
-        const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, state.zoom * zoomFactor));
+      } else if (shouldZoom) {
+        // Mouse wheel or trackpad for zooming - direct response (no animation to prevent rubberbanding)
+        const zoomDelta = e.deltaY < 0 ? 1.0 : -1.0; // Increased from 0.2 to 1.0 (5x faster)
+        const zoomFactor = Math.pow(1.2, zoomDelta); // Increased base from 1.1 to 1.2
+        const newZoom = Math.max(
+          MIN_ZOOM,
+          Math.min(MAX_ZOOM, state.zoom * zoomFactor)
+        );
 
-        // Use smooth animation for mouse wheel
-        smoothZoom(newZoom, mouseX, mouseY, 150);
+        // Direct zoom without animation to prevent rubberbanding
+        const worldX = (mouseX - state.canvasOffset.x) / state.zoom;
+        const worldY = (mouseY - state.canvasOffset.y) / state.zoom;
+
+        updateState({
+          canvasOffset: {
+            x: mouseX - worldX * newZoom,
+            y: mouseY - worldY * newZoom,
+          },
+          zoom: newZoom,
+        });
       }
     },
     [state.zoom, state.canvasOffset, updateState, smoothZoom]
@@ -598,9 +674,15 @@ export const useCanvasInteraction = ({
     if (!container) return;
 
     // Add gesture event listeners for Safari
-    container.addEventListener('gesturestart', handleGestureStart, { passive: false });
-    container.addEventListener('gesturechange', handleGestureChange, { passive: false });
-    container.addEventListener('gestureend', handleGestureEnd, { passive: false });
+    container.addEventListener('gesturestart', handleGestureStart, {
+      passive: false,
+    });
+    container.addEventListener('gesturechange', handleGestureChange, {
+      passive: false,
+    });
+    container.addEventListener('gestureend', handleGestureEnd, {
+      passive: false,
+    });
 
     return () => {
       container.removeEventListener('gesturestart', handleGestureStart);
@@ -622,7 +704,9 @@ export const useCanvasInteraction = ({
 
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
-      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+      document.addEventListener('touchmove', handleTouchMove, {
+        passive: false,
+      });
       document.addEventListener('touchend', handleTouchEnd);
 
       return () => {
@@ -650,4 +734,4 @@ export const useCanvasInteraction = ({
     handleWheelZoom,
     resetView,
   };
-}; 
+};
