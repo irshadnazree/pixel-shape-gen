@@ -1,12 +1,12 @@
-import { useState } from "react";
-import { useTheme } from "../../contexts/ThemeContext";
-import { useCanvasInteraction } from "../../hooks/useCanvasInteraction";
-import { useShapeManagement } from "../../hooks/useShapeManagement";
-import { DarkModeToggle } from "../ui/DarkModeToggle";
-import { FloatingCard } from "../ui/FloatingCard";
-import { CanvasArea } from "./CanvasArea";
-import { ControlsPanel } from "./ControlsPanel";
-import { ShapeList } from "./ShapeList";
+import { useState } from 'react';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useCanvasInteraction } from '../../hooks/useCanvasInteraction';
+import { useShapeManagement } from '../../hooks/useShapeManagement';
+import { DarkModeToggle } from '../ui/DarkModeToggle';
+import { FloatingCard } from '../ui/FloatingCard';
+import { CanvasArea } from './CanvasArea';
+import { ControlsPanel } from './ControlsPanel';
+import { ShapeList } from './ShapeList';
 
 export default function PixelShapeGenerator() {
   const { isDarkMode } = useTheme();
@@ -49,7 +49,7 @@ export default function PixelShapeGenerator() {
     <div
       className={`
       min-h-screen transition-colors duration-200
-      ${isDarkMode ? "bg-gray-900" : "bg-gray-100"}
+      ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'}
     `}
     >
       {/* Dark Mode Toggle */}
@@ -57,10 +57,10 @@ export default function PixelShapeGenerator() {
 
       {/* Left Floating Card - Controls Panel */}
       <FloatingCard
-        title="Shape Controls"
+        title='Shape Controls'
         isOpen={isControlsPanelOpen}
         onToggle={() => setIsControlsPanelOpen(!isControlsPanelOpen)}
-        position="left"
+        position='left'
         defaultPosition={{ x: 20, y: 100 }}
       >
         <ControlsPanel
@@ -84,10 +84,10 @@ export default function PixelShapeGenerator() {
 
       {/* Right Floating Card - Shape List */}
       <FloatingCard
-        title="Shape List"
+        title='Shape List'
         isOpen={isShapeListOpen}
         onToggle={() => setIsShapeListOpen(!isShapeListOpen)}
-        position="right"
+        position='right'
       >
         <ShapeList
           shapes={shapeManagement.shapes}
@@ -95,6 +95,7 @@ export default function PixelShapeGenerator() {
           onShapeSelect={shapeManagement.setSelectedShapeId}
           onRemoveShape={shapeManagement.removeShape}
           onMoveShapeLayer={shapeManagement.handleMoveShapeLayer}
+          onReorderShapes={shapeManagement.reorderShapes}
         />
       </FloatingCard>
 

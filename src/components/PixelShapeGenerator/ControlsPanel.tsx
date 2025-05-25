@@ -1,7 +1,18 @@
-import React from "react";
-import type { ShapeData, ShapeType } from "../../constants/pixel-shape";
-import { SHAPE_TYPES } from "../../constants/pixel-shape";
-import { useTheme } from "../../contexts/ThemeContext";
+import React from 'react';
+import type { ShapeData, ShapeType } from '../../constants/pixel-shape';
+import { SHAPE_TYPES } from '../../constants/pixel-shape';
+import { Button } from '../ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select';
+import { Slider } from '../ui/slider';
 
 interface ControlsPanelProps {
   // Form state
@@ -18,7 +29,7 @@ interface ControlsPanelProps {
   onWidthChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onHeightChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onColorChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onOpacityChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onOpacityChange: (value: number[]) => void;
   onFormSubmit: () => void;
 }
 
@@ -38,129 +49,160 @@ export const ControlsPanel = React.memo<ControlsPanelProps>(
     onOpacityChange,
     onFormSubmit,
   }) => {
-    const { isDarkMode } = useTheme();
-
-    const inputClasses = `
-      w-full px-3 py-2 border rounded-md shadow-sm transition-colors
-      focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
-      ${
-        isDarkMode
-          ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-          : "bg-white border-gray-300 text-gray-900"
-      }
-    `;
-
-    const labelClasses = `
-      block text-sm font-medium mb-2
-      ${isDarkMode ? "text-gray-200" : "text-gray-700"}
-    `;
-
-    const buttonClasses = `
-      w-full font-bold py-3 px-4 rounded-md transition-colors duration-150
-      ${
-        isDarkMode
-          ? "bg-indigo-600 hover:bg-indigo-700 text-white"
-          : "bg-indigo-600 hover:bg-indigo-700 text-white"
-      }
-    `;
-
     return (
-      <div className="space-y-6">
-        <div>
-          <label className={labelClasses}>Shape Type:</label>
-          <div className="flex flex-col space-y-2">
-            {SHAPE_TYPES.map((type) => (
-              <label
-                key={type}
-                className={`
-                  flex items-center space-x-2 cursor-pointer p-2 rounded-md transition-colors
-                  ${isDarkMode ? "hover:bg-gray-700" : "hover:bg-gray-50"}
-                `}
-              >
-                <input
-                  type="radio"
-                  name="shapeType"
-                  value={type}
-                  checked={currentShapeType === type}
-                  onChange={() => onShapeTypeChange(type)}
-                  className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300"
-                  disabled={isEditing && selectedShapeObject?.type !== type}
-                />
-                <span
-                  className={`text-sm capitalize ${isDarkMode ? "text-gray-200" : "text-gray-700"}`}
-                >
-                  {type}
+      <div className='h-full flex flex-col space-y-4'>
+        {/* Shape Type Selection */}
+        <Card>
+          <CardHeader className='pb-3'>
+            <CardTitle className='text-sm font-semibold uppercase tracking-wider'>
+              Shape Type
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Select
+              value={currentShapeType}
+              onValueChange={onShapeTypeChange}
+              disabled={isEditing}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder='Select a shape type' />
+              </SelectTrigger>
+              <SelectContent>
+                {SHAPE_TYPES.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+
+        {/* Dimensions */}
+        <Card>
+          <CardHeader className='pb-3'>
+            <CardTitle className='text-sm font-semibold uppercase tracking-wider'>
+              Dimensions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className='grid grid-cols-2 gap-3'>
+              <div className='space-y-2'>
+                <Label htmlFor='width' className='text-sm'>
+                  Width
+                </Label>
+                <div className='relative'>
+                  <Input
+                    id='width'
+                    type='number'
+                    value={width}
+                    onChange={onWidthChange}
+                    min='1'
+                    max='100'
+                    placeholder='Width'
+                    className='pr-8'
+                  />
+                  <span className='absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-muted-foreground'>
+                    px
+                  </span>
+                </div>
+              </div>
+              <div className='space-y-2'>
+                <Label htmlFor='height' className='text-sm'>
+                  Height
+                </Label>
+                <div className='relative'>
+                  <Input
+                    id='height'
+                    type='number'
+                    value={height}
+                    onChange={onHeightChange}
+                    min='1'
+                    max='100'
+                    placeholder='Height'
+                    className='pr-8'
+                  />
+                  <span className='absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-muted-foreground'>
+                    px
+                  </span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Appearance */}
+        <Card className='flex-1'>
+          <CardHeader className='pb-3'>
+            <CardTitle className='text-sm font-semibold uppercase tracking-wider'>
+              Appearance
+            </CardTitle>
+          </CardHeader>
+          <CardContent className='space-y-4'>
+            {/* Color Picker */}
+            <div className='space-y-2'>
+              <Label htmlFor='color' className='text-sm'>
+                Color
+              </Label>
+              <div className='flex items-center space-x-3'>
+                <div className='relative'>
+                  <input
+                    id='color'
+                    type='color'
+                    value={currentShapeBaseColor}
+                    onChange={onColorChange}
+                    className='w-12 h-12 rounded-lg border border-input cursor-pointer shadow-sm hover:shadow-md transition-shadow'
+                  />
+                </div>
+                <div className='text-sm font-mono text-muted-foreground'>
+                  {currentShapeBaseColor.toUpperCase()}
+                </div>
+              </div>
+            </div>
+
+            {/* Opacity Slider */}
+            <div className='space-y-2'>
+              <div className='flex justify-between items-center'>
+                <Label className='text-sm'>Opacity</Label>
+                <span className='text-xs font-mono text-muted-foreground'>
+                  {Math.round(currentShapeOpacity * 100)}%
                 </span>
-              </label>
-            ))}
+              </div>
+              <Slider
+                value={[currentShapeOpacity]}
+                onValueChange={onOpacityChange}
+                max={1}
+                min={0}
+                step={0.01}
+                className='w-full'
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Action Button */}
+        <Button onClick={onFormSubmit} className='w-full' size='lg'>
+          <div className='flex items-center justify-center space-x-2'>
+            <span>
+              {isEditing
+                ? `Update ${selectedShapeObject?.type || 'Shape'}`
+                : `Add ${currentShapeType}`}
+            </span>
+            <svg
+              className='w-5 h-5'
+              fill='none'
+              stroke='currentColor'
+              viewBox='0 0 24 24'
+            >
+              <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                strokeWidth={2}
+                d={isEditing ? 'M5 13l4 4L19 7' : 'M12 6v6m0 0v6m0-6h6m-6 0H6'}
+              />
+            </svg>
           </div>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className={labelClasses}>Width (pixels):</label>
-            <input
-              type="number"
-              value={width}
-              onChange={onWidthChange}
-              className={inputClasses}
-              min="1"
-              max="100"
-            />
-          </div>
-          <div>
-            <label className={labelClasses}>Height (pixels):</label>
-            <input
-              type="number"
-              value={height}
-              onChange={onHeightChange}
-              className={inputClasses}
-              min="1"
-              max="100"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label htmlFor="shapeColor" className={labelClasses}>
-            Shape Color:
-          </label>
-          <input
-            id="shapeColor"
-            type="color"
-            value={currentShapeBaseColor}
-            onChange={onColorChange}
-            className={`
-              w-full h-10 border rounded-md cursor-pointer
-              ${isDarkMode ? "border-gray-600 bg-gray-700" : "border-gray-300 bg-white"}
-            `}
-          />
-        </div>
-
-        <div>
-          <label htmlFor="shapeOpacity" className={labelClasses}>
-            Opacity: {currentShapeOpacity.toFixed(2)}
-          </label>
-          <input
-            id="shapeOpacity"
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={currentShapeOpacity}
-            onChange={onOpacityChange}
-            className={`
-              w-full h-2 rounded-lg appearance-none cursor-pointer accent-indigo-600
-              ${isDarkMode ? "bg-gray-600" : "bg-gray-200"}
-            `}
-          />
-        </div>
-
-        <button onClick={onFormSubmit} className={buttonClasses}>
-          {isEditing
-            ? `Update ${selectedShapeObject?.type || "Shape"}`
-            : `Add ${currentShapeType}`}
-        </button>
+        </Button>
       </div>
     );
   }
